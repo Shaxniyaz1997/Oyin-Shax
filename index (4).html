@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEON RUNNER — Brauzer o‘yini</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 15%,#1b315c,#090d1b 65%);font-family:Arial,sans-serif;color:#eef5ff}
+  .wrap{width:min(960px,96vw);padding:18px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+  h1{margin:0;font-size:clamp(22px,4vw,34px);letter-spacing:3px;color:#62f5ff;text-shadow:0 0 18px #18c8ff}
+  .stats{display:flex;gap:10px}
+  .stat{background:#111d35;border:1px solid #28456b;border-radius:12px;padding:9px 14px;font-weight:bold}
+  .stat span{color:#62f5ff}
+  .gamebox{position:relative;border:1px solid #31577e;border-radius:18px;overflow:hidden;box-shadow:0 20px 60px #0009,0 0 35px #13cfff22;background:#080f20}
+  canvas{display:block;width:100%;height:auto;touch-action:manipulation}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#050b18b8;text-align:center;padding:20px}
+  .panel{max-width:430px;background:#101d35eF;border:1px solid #3c6b91;border-radius:18px;padding:24px;box-shadow:0 0 35px #00cfff22}
+  .panel h2{margin:0 0 10px;color:#68f4ff;font-size:27px}
+  .panel p{line-height:1.55;color:#c5d5e9}
+  button{border:0;border-radius:12px;padding:13px 24px;background:linear-gradient(135deg,#29d7e8,#397cff);color:#061326;font-weight:800;font-size:16px;cursor:pointer;box-shadow:0 7px 22px #16bce955}
+  button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+  .hint{text-align:center;color:#9fb4ce;font-size:13px;margin:12px 0 0}
+  .mobile{display:none;justify-content:center;margin-top:12px}
+  .mobile button{width:100%;max-width:260px}
+  @media(max-width:650px){.mobile{display:flex}.stat{padding:7px 10px;font-size:13px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>NEON RUNNER</h1>
+    <div class="stats">
+      <div class="stat">BALL: <span id="score">0</span></div>
+      <div class="stat">REKORD: <span id="best">0</span></div>
+    </div>
+  </header>
+  <div class="gamebox">
+    <canvas id="game" width="900" height="430" aria-label="Neon Runner o‘yini"></canvas>
+    <div class="overlay" id="overlay">
+      <div class="panel">
+        <h2 id="messageTitle">NEON RUNNER</h2>
+        <p id="messageText">To‘siqlardan sakrab o‘ting va imkon qadar ko‘proq ball to‘plang!<br><b>SPACE</b>, <b>↑</b> yoki ekranga bosib sakrang.</p>
+        <button id="startBtn">O‘YINNI BOSHLASH</button>
+      </div>
+    </div>
+  </div>
+  <div class="mobile"><button id="jumpBtn">SAKRASH  ↑</button></div>
+  <p class="hint">Boshqaruv: SPACE / ↑ / W yoki sichqoncha bosilishi. Telefon va planshetda ekranga teging.</p>
+</div>
+<script>
+(() => {
+  const canvas=document.getElementById('game'), ctx=canvas.getContext('2d');
+  const scoreEl=document.getElementById('score'), bestEl=document.getElementById('best');
+  const overlay=document.getElementById('overlay'), startBtn=document.getElementById('startBtn');
+  const titleEl=document.getElementById('messageTitle'), textEl=document.getElementById('messageText');
+  const W=canvas.width,H=canvas.height,ground=350;
+  let running=false,score=0,best=Number(localStorage.getItem('neonRunnerBest')||0);
+  let speed=6,frame=0,obstacles=[],particles=[],stars=[];
+  bestEl.textContent=best;
+  const player={x:115,y:ground-48,w:38,h:48,vy:0,onGround:true};
+  for(let i=0;i<65;i++) stars.push({x:Math.random()*W,y:Math.random()*290,r:Math.random()*1.8+.3,s:Math.random()*.5+.15});
+  function reset(){score=0;speed=6;frame=0;obstacles=[];particles=[];player.y=ground-player.h;player.vy=0;player.onGround=true;scoreEl.textContent='0'}
+  function jump(){if(!running){return} if(player.onGround){player.vy=-15.5;player.onGround=false;for(let i=0;i<7;i++)particles.push({x:player.x+18,y:ground,vx:(Math.random()-.5)*4,vy:-Math.random()*4-1,life:25})}}
+  function start(){reset();running=true;overlay.style.display='none';loop()}
+  function end(){running=false;if(score>best){best=score;localStorage.setItem('neonRunnerBest',best);bestEl.textContent=best}
+    titleEl.textContent='O‘YIN TUGADI!';textEl.innerHTML=`Sizning natijangiz: <b>${score}</b> ball.<br>Yana urinib ko‘ring va rekordingizni yangilang!`;
+    startBtn.textContent='QAYTA BOSHLASH';overlay.style.display='flex'}
+  function rounded(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill()}
+  function draw(){
+    const bg=ctx.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#0a1730');bg.addColorStop(1,'#10152c');ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
+    stars.forEach(s=>{ctx.fillStyle=`rgba(140,220,255,${.35+Math.sin(frame*.03+s.x)*.25})`;ctx.beginPath();ctx.arc((s.x-frame*s.s*.35+W*5)%W,s.y,s.r,0,Math.PI*2);ctx.fill()});
+    ctx.fillStyle='#172b4c';ctx.beginPath();ctx.moveTo(0,285);for(let x=0;x<=W;x+=90)ctx.lineTo(x,255+Math.sin(x*.018)*20);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+    ctx.strokeStyle='#1c7791';ctx.lineWidth=2;ctx.shadowColor='#21eaff';ctx.shadowBlur=12;ctx.beginPath();ctx.moveTo(0,ground);ctx.lineTo(W,ground);ctx.stroke();ctx.shadowBlur=0;
+    ctx.strokeStyle='#24516e';ctx.lineWidth=1;for(let x=-(frame*speed*.8%55);x<W;x+=55){ctx.beginPath();ctx.moveTo(x,ground+2);ctx.lineTo(x-25, H);ctx.stroke()}
+    // player
+    ctx.shadowColor='#37f4ff';ctx.shadowBlur=20;ctx.fillStyle='#5cf6ff';rounded(player.x,player.y,player.w,player.h,9);ctx.shadowBlur=0;
+    ctx.fillStyle='#10233b';rounded(player.x+22,player.y+10,9,9,3);ctx.fillStyle='#dfffff';rounded(player.x+25,player.y+12,3,3,2);
+    ctx.fillStyle='#2b9cba';rounded(player.x+7,player.y+player.h-8,9,8,3);rounded(player.x+24,player.y+player.h-8,9,8,3);
+    obstacles.forEach(o=>{ctx.shadowColor='#ff5d91';ctx.shadowBlur=15;ctx.fillStyle='#ff4f85';rounded(o.x,o.y,o.w,o.h,7);ctx.shadowBlur=0;ctx.fillStyle='#ffb1c8';rounded(o.x+6,o.y+7,5,Math.max(8,o.h-14),3)});
+    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/25);ctx.fillStyle='#55eaff';ctx.fillRect(p.x,p.y,4,4);ctx.globalAlpha=1});
+  }
+  function update(){
+    frame++;player.vy+=.72;player.y+=player.vy;if(player.y>=ground-player.h){player.y=ground-player.h;player.vy=0;player.onGround=true}
+    if(frame%Math.max(42,Math.floor(88-speed*3))===0){let h=30+Math.random()*35;obstacles.push({x:W+20,y:ground-h,w:24+Math.random()*17,h})}
+    obstacles.forEach(o=>o.x-=speed);obstacles=obstacles.filter(o=>o.x+o.w>0);
+    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.15;p.life--});particles=particles.filter(p=>p.life>0);
+    for(const o of obstacles){if(player.x+player.w-7>o.x&&player.x+7<o.x+o.w&&player.y+player.h-5>o.y){end();return}}
+    if(frame%6===0){score++;scoreEl.textContent=score;if(score%100===0)speed=Math.min(11,speed+.45)}
+  }
+  function loop(){if(!running)return;update();draw();if(running)requestAnimationFrame(loop)}
+  startBtn.addEventListener('click',start);
+  document.addEventListener('keydown',e=>{if(['Space','ArrowUp','KeyW'].includes(e.code)){e.preventDefault();if(!running&&overlay.style.display!=='none')start();else jump()}});
+  canvas.addEventListener('pointerdown',()=>{if(running)jump()});
+  document.getElementById('jumpBtn').addEventListener('click',()=>{if(running)jump();else start()});
+  draw();
+})();
+</script>
+</body>
+</html>
